@@ -1,118 +1,145 @@
-# Tienda de Perritos - AWS ECS & GitHub Actions (DevOps EP3)
+# Tienda de Perritos - Solución de Orquestación y Automatización DevOps
+## Evaluación Parcial N° 3 - Introducción a Herramientas DevOps (ISY1101)
 
-Este proyecto consiste en una aplicación web de tienda de mascotas ("Tienda de Perritos") diseñada bajo prácticas DevOps para cumplir al 100% con la pauta de la **Evaluación Parcial N°3** de **Introducción a Herramientas DevOps (ISY1101)**.
-
-La arquitectura se compone de:
-*   **Frontend:** Servidor Nginx que entrega archivos estáticos (HTML/CSS/JS) y actúa como reverse proxy redirigiendo el tráfico `/api/` internamente hacia el backend.
-*   **Backend:** API REST en Node.js/Express que sirve el catálogo de productos y procesa simulaciones de pago.
+Este repositorio contiene la solución completa para el caso de estudio **Innovatech Chile**, compuesta por una arquitectura de microservicios contenedorizada con **Docker**, automatizada con **GitHub Actions**, y orquestada en **AWS ECS Fargate** a través de un **Application Load Balancer (ALB)**.
 
 ---
 
-## 1. Ejecución Local (Docker Compose)
+## 1. Arquitectura del Sistema
 
-Puedes probar todo el flujo de la aplicación de manera local utilizando Docker Compose:
+La solución separa el tráfico del cliente en dos microservicios independientes:
 
-### Requisitos previos:
-*   Tener instalado [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+*   **Frontend (Nginx):** Entrega la interfaz web responsiva (HTML5, CSS3, JS) y expone la tienda al exterior. Está configurado para iniciar de forma segura en entornos de nube sin depender de la resolución DNS del backend en el arranque.
+*   **Backend (Node.js/Express):** API REST que sirve el catálogo de productos (`GET /api/products`), procesa la simulación bancaria del checkout (`POST /api/checkout`), y provee telemetría de salud (`GET /api/health`).
+
+### Diagrama de Flujo y Red en AWS:
+
+```mermaid
+graph TD
+    %% CI/CD Flow
+    subgraph GitHub ["GitHub Repository"]
+        code[Código Fuente] --> workflow[GitHub Actions Workflow]
+    end
+
+    subgraph AWS ["Amazon Web Services"]
+        ecr_front[(ECR Frontend)]
+        ecr_back[(ECR Backend)]
+        
+        subgraph VPC ["VPC de AWS"]
+            alb[Application Load Balancer]
+            
+            subgraph Subredes_Publicas ["Subredes Públicas (Fargate)"]
+                front[Frontend Task / Puerto 80]
+                back[Backend Task / Puerto 3000]
+            end
+        end
+        
+        cw[CloudWatch Logs]
+    end
+
+    %% Pipeline triggers
+    workflow -- "1. Build & Push" --> ecr_front
+    workflow -- "1. Build & Push" --> ecr_back
+    workflow -- "2. ECS Force Deploy" --> VPC
+    
+    %% Users Access
+    User((Usuario Final)) -- "http://<ALB-DNS>/" --> alb
+    
+    %% Path Routing Rules
+    alb -- "Ruta /* (HTTP:80)" --> front
+    alb -- "Ruta /api/* (HTTP:3000)" --> back
+    
+    %% Monitoring
+    front -.-> cw
+    back -.-> cw
+```
+
+---
+
+## 2. Ejecución y Pruebas en Entorno Local
+
+Puedes levantar toda la infraestructura y probar la aplicación localmente usando Docker Compose:
+
+### Requisitos:
+*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y en ejecución.
 
 ### Instrucciones:
-1. Abre una terminal en la raíz del proyecto.
-2. Ejecuta el comando:
-   ```bash
-   docker-compose up --build
-   ```
-3. Una vez finalizada la construcción, accede a:
-   *   **Frontend (Aplicación):** [http://localhost](http://localhost)
-   *   **Backend (API Health):** [http://localhost:3000/api/health](http://localhost:3000/api/health)
-4. Para detener los contenedores:
-   ```bash
-   docker-compose down
-   ```
+1.  Clona el repositorio y abre una terminal en la raíz del proyecto.
+2.  Levanta el entorno con el siguiente comando:
+    ```bash
+    docker-compose up --build
+    ```
+3.  Accede desde tu navegador a:
+    *   **Tienda (Frontend):** [http://localhost](http://localhost)
+    *   **Healthcheck del Backend:** [http://localhost:3000/api/health](http://localhost:3000/api/health)
+4.  Para apagar y limpiar los contenedores:
+    ```bash
+    docker-compose down
+    ```
 
 ---
 
-## 2. Guía de Despliegue en AWS ECS (Fargate)
+## 3. Configuración y Despliegue en AWS (Fargate)
 
-Sigue estos pasos en la consola de AWS para desplegar la arquitectura completa:
+Para sortear las restricciones del entorno de **AWS Academy (Learner Labs)** —el cual bloquea la creación de Namespaces de Cloud Map / Service Connect—, se implementó un esquema de enrutamiento basado en rutas directamente en el balanceador de carga.
 
-### Paso 1: Crear repositorios en Amazon ECR
-1. Ve al servicio **Amazon ECR** (Elastic Container Registry).
-2. Crea dos repositorios privados:
-   *   `tiendaperritos-backend`
-   *   `tiendaperritos-frontend`
-3. Copia las URLs de los repositorios (las necesitarás para el pipeline de GitHub Actions).
+### Paso 1: Crear los repositorios en Amazon ECR
+Crea los repositorios privados para alojar las imágenes de Docker:
+```bash
+aws ecr create-repository --repository-name tiendaperritos-backend
+aws ecr create-repository --repository-name tiendaperritos-frontend
+```
 
 ### Paso 2: Crear el Clúster de ECS
-1. Ve a **Amazon ECS** (Elastic Container Service).
-2. Haz clic en **Create Cluster**.
-3. Elige un nombre para el clúster: `tiendaperritos-cluster`.
-4. En **Infrastructure**, selecciona **AWS Fargate** (Serverless).
-5. Haz clic en **Create**.
+Dado que la interfaz gráfica de AWS Academy puede presentar fallos de roles al crear el clúster, ejecútalo en **AWS CloudShell**:
+```bash
+aws ecs create-cluster --cluster-name tiendaperritos-cluster
+```
 
-### Paso 3: Configurar la Red (VPC) y Security Groups
-Para cumplir con las pautas de seguridad de la rúbrica (IE1):
-1. **Security Group para el ALB:** Permitir entrada HTTP (puerto 80) desde cualquier origen (`0.0.0.0/0`).
-2. **Security Group para el Frontend:** Permitir entrada en puerto 80 solo desde el Security Group del ALB.
-3. **Security Group para el Backend:** Permitir entrada en puerto 3000 solo desde el Security Group del Frontend.
+### Paso 3: Crear los Target Groups (EC2)
+*   **`tg-backend`:** Tipo de destino: *IP addresses*. Puerto `3000`, protocolo `HTTP`. Health Check en `/api/health`.
+*   **`tg-frontend`:** Tipo de destino: *IP addresses*. Puerto `80`, protocolo `HTTP`. Health Check en `/health`.
 
-### Paso 4: Crear las Task Definitions (Definición de Tareas)
-Puedes crear una Task Definition para cada servicio o una sola conjunta. Recomendamos crearlas por separado:
+### Paso 4: Crear y Configurar el Balanceador de Carga (ALB)
+1.  Crea un **Application Load Balancer** público (`tiendaperritos-alb`).
+2.  Agrega un Listener en el puerto `80` HTTP que redirija por defecto a `tg-frontend`.
+3.  Ve a la gestión de reglas del Listener de puerto 80 y agrega una regla de prioridad alta:
+    *   **Condición:** Path es `/api/*`
+    *   **Acción:** Forward to `tg-backend`
 
-#### A. Task Definition para el Backend (`tiendaperritos-backend`):
-1. Elige **Fargate** como tipo de lanzamiento.
-2. Asigna la CPU y memoria mínima (`0.25 vCPU` y `0.5 GB`).
-3. Define el rol de ejecución de tarea: `LabRole` (en AWS Academy) o `ecsTaskExecutionRole`.
-4. Agrega un contenedor con el nombre `backend`:
-   *   **Image:** URL de tu repositorio ECR `tiendaperritos-backend:latest`
-   *   **Port mappings:** Puerto `3000` (TCP).
-5. Habilita los logs de CloudWatch.
+### Paso 5: Crear las Task Definitions
+Crea dos Task Definitions separadas de tipo **Fargate** (`tiendaperritos-backend` y `tiendaperritos-frontend`):
+*   Usa **`LabRole`** como rol de ejecución de tarea y de tarea.
+*   Usa la asignación de recursos mínima: `0.25 vCPU` y `0.5 GB` de RAM.
+*   Container Backend: Puerto `3000`, protocolo `HTTP`.
+*   Container Frontend: Puerto `80`, protocolo `HTTP`.
 
-#### B. Task Definition para el Frontend (`tiendaperritos-frontend`):
-1. Repite los pasos anteriores.
-2. Agrega un contenedor con el nombre `frontend`:
-   *   **Image:** URL de tu repositorio ECR `tiendaperritos-frontend:latest`
-   *   **Port mappings:** Puerto `80` (TCP).
-3. Habilita los logs de CloudWatch.
+### Paso 6: Crear los Servicios en ECS
+Crea los servicios `backend-service` y `frontend-service` en tu clúster:
+*   IP pública: **Enabled** (obligatorio para descargar las imágenes de ECR en Learner Labs).
+*   Service Connect: **Disabled**.
+*   Asocia cada servicio a su Target Group correspondiente (`tg-backend` y `tg-frontend` respectivamente).
 
-### Paso 5: Configurar Service Connect (Comunicación Interna)
-Para que el Frontend Nginx pueda enviar consultas a `http://backend:3000/api/` de manera privada:
-1. Al crear los servicios en ECS, activa **Service Connect**.
-2. Define un namespace (ej. `tiendaperritos.local`).
-3. Para el servicio de Backend: configúralo como **Client/Server**, puerto `3000`, y nombre de descubrimiento `backend`.
-4. Para el servicio de Frontend: configúralo como **Client** (o Client/Server si requiere ser expuesto por ALB), conectándolo al mismo namespace.
-
-### Paso 6: Configurar el Balanceador de Carga (ALB) y Crear Servicios
-1. Crea un **Application Load Balancer (ALB)** público.
-2. Crea un Target Group para el Frontend (Puerto 80, Health Check en `/health`).
-3. En ECS, crea el **Servicio del Backend** (sin IP pública, privado dentro de las subredes).
-4. Crea el **Servicio del Frontend** (asociado al ALB público, expuesto a internet).
-
-### Paso 7: Configurar Autoscaling (IE3)
-1. En la pestaña de configuración del servicio de ECS, ve a **Service Auto Scaling**.
-2. Configura una política de escalado de tipo **Target Tracking**.
-3. Métrica: **CPU Utilization** al **50%** (o Memory al 50%).
-4. Justificación para la defensa: Un umbral de 50% garantiza que ante ráfagas de visitas simultáneas (como simulación de carga con ApacheBench o Locust), el servicio levante nuevas tareas para evitar la degradación de la latencia antes de que los contenedores actuales se saturen.
+### Paso 7: Regla de Escalabilidad (Autoscaling)
+Aplica una política de escalabilidad de tipo **Target Tracking** en el uso promedio de CPU al **50%** en el servicio de backend para garantizar tolerancia a picos de carga.
 
 ---
 
-## 3. Configuración de GitHub Actions (CI/CD)
+## 4. Pipeline de CI/CD (GitHub Actions)
 
-El archivo de workflow ya se encuentra en `.github/workflows/deploy.yml`. Para habilitarlo, debes configurar los secrets en tu repositorio de GitHub:
+El workflow se encuentra en [.github/workflows/deploy.yml](file:///.github/workflows/deploy.yml).
 
-### Agregar Secrets en GitHub:
-1. Ve a tu repositorio en GitHub $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**.
-2. Haz clic en **New repository secret** y agrega:
-   *   `AWS_ACCESS_KEY_ID`: Tu llave de acceso de AWS.
-   *   `AWS_SECRET_ACCESS_KEY`: Tu clave secreta de AWS.
-   *   `AWS_SESSION_TOKEN`: Tu token de sesión temporal (necesario si estás usando la plataforma de AWS Academy Learner Lab).
-3. Cada vez que hagas `git push` a la rama `main`, el pipeline construirá automáticamente las imágenes de Docker, las subirá a Amazon ECR y gatillará la actualización de los servicios en ECS.
+### Secrets de GitHub Requeridos:
+Para habilitar el despliegue automático, configura las siguientes claves temporales en **Settings** -> **Secrets and variables** -> **Actions** en tu repositorio:
+*   `AWS_ACCESS_KEY_ID`
+*   `AWS_SECRET_ACCESS_KEY`
+*   `AWS_SESSION_TOKEN` (Obligatorio en AWS Academy)
+
+Cada `git push` a la rama `main` compilará las imágenes, las subirá a ECR y forzará la actualización de tareas en ECS.
 
 ---
 
-## 4. Endpoints y Monitoreo (Logs)
+## 5. Validación y Monitoreo
 
-*   **Logs del Backend:** Puedes monitorear la salida estándar de Node.js a través de **AWS CloudWatch logs** en el grupo `/ecs/tiendaperritos-backend`. Cada petición, error y simulación de pago imprimirá logs con formato combinado estructurado.
-*   **Logs de Nginx (Frontend):** Monitorea accesos en `/ecs/tiendaperritos-frontend` para ver los requests HTTP de los usuarios y las redirecciones de proxy al backend.
-*   **Validación de Salud:**
-    *   Frontend: `http://<ALB-DNS>/health` (debe responder `healthy`).
-    *   Backend: `http://<ALB-DNS>/api/health` (debe responder JSON con timestamp de salud).
+*   **Logs del Sistema:** Centralizados en Amazon CloudWatch en los grupos `/ecs/tiendaperritos-backend` y `/ecs/tiendaperritos-frontend`.
+*   **Prueba de Disponibilidad:** Accede a la URL pública asignada a tu ALB (ej: `http://tiendaperritos-alb-123456789.us-east-1.elb.amazonaws.com`) para ver la aplicación web respondiendo y conectándose con la API REST.
