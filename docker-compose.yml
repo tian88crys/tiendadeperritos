@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: tiendaperritos-backend
+    ports:
+      - "3000:3000"
+    networks:
+      - tiendaperritos-net
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: tiendaperritos-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - tiendaperritos-net
+    restart: always
+
+networks:
+  tiendaperritos-net:
+    driver: bridge

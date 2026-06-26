@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda de Perritos - Innovatech Chile</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navbar Header -->
+    <header class="navbar">
+        <div class="container navbar-container">
+            <a href="#" class="logo">
+                <i class="fa-solid fa-dog dog-logo-icon"></i>
+                <span>Tienda de <span class="accent">Perritos</span></span>
+            </a>
+            <button class="cart-btn" id="cartBtn" aria-label="Ver carrito">
+                <i class="fa-solid fa-shopping-cart"></i>
+                <span class="cart-badge" id="cartBadge">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Hero -->
+    <section class="hero">
+        <div class="container hero-container">
+            <h1 class="hero-title">Los mejores productos para tu fiel compañero</h1>
+            <p class="hero-subtitle">Selección premium para que tu mascota disfrute cada día con comodidad, salud y diversión.</p>
+        </div>
+    </section>
+
+    <!-- Product Catalog Section -->
+    <main class="container catalog-container">
+        <h2 class="section-title">Nuestra Selección Premium</h2>
+        <div class="products-grid" id="productsGrid">
+            <!-- Loading state -->
+            <div class="loader-container" id="catalogLoader">
+                <div class="spinner"></div>
+                <p>Cargando productos...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Shopping Cart Modal (Drawer) -->
+    <div class="modal-overlay" id="cartModal">
+        <div class="cart-drawer">
+            <div class="drawer-header">
+                <h3><i class="fa-solid fa-shopping-basket"></i> Tu Carrito</h3>
+                <button class="close-btn" id="closeCartBtn">&times;</button>
+            </div>
+            <div class="drawer-content" id="cartContent">
+                <!-- Cart items will be loaded here -->
+            </div>
+            <div class="drawer-footer">
+                <div class="cart-total-row">
+                    <span>Total:</span>
+                    <span class="cart-total-price" id="cartTotal">$0 CLP</span>
+                </div>
+                <button class="checkout-btn" id="proceedToPayBtn" disabled>Proceder al Pago</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="modal-overlay" id="checkoutModal">
+        <div class="checkout-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-credit-card"></i> Simulación de Pago</h3>
+                <button class="close-btn" id="closeCheckoutBtn">&times;</button>
+            </div>
+            <form id="checkoutForm" class="checkout-form">
+                <div class="form-group">
+                    <label for="cardName">Nombre del Titular</label>
+                    <input type="text" id="cardName" required placeholder="Juan Pérez" autocomplete="cc-name">
+                </div>
+                <div class="form-group">
+                    <label for="cardNumber">Número de Tarjeta</label>
+                    <input type="text" id="cardNumber" required placeholder="4557 1234 5678 9012" maxlength="19" autocomplete="cc-number">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cardExpiry">Vencimiento</label>
+                        <input type="text" id="cardExpiry" required placeholder="MM/AA" maxlength="5" autocomplete="cc-exp">
+                    </div>
+                    <div class="form-group">
+                        <label for="cardCvv">CVV</label>
+                        <input type="password" id="cardCvv" required placeholder="123" maxlength="3" autocomplete="cc-csc">
+                    </div>
+                </div>
+                
+                <div class="order-summary-box">
+                    <span>Total a Pagar:</span>
+                    <strong id="checkoutTotal">$0 CLP</strong>
+                </div>
+
+                <button type="submit" class="submit-pay-btn" id="paySubmitBtn">
+                    <span>Simular Pago</span>
+                </button>
+            </form>
+
+            <!-- Loading overlay for transaction -->
+            <div class="payment-loader-overlay" id="paymentLoader">
+                <div class="spinner"></div>
+                <p>Procesando pago bancario seguro...</p>
+            </div>
+
+            <!-- Success State -->
+            <div class="payment-result-screen" id="paymentSuccessScreen">
+                <i class="fa-solid fa-circle-check success-icon"></i>
+                <h3>¡Pago Aprobado!</h3>
+                <p id="successMessage">Tu pago ha sido procesado exitosamente por la simulación.</p>
+                <div class="receipt-box">
+                    <p><strong>ID Transacción:</strong> <span id="receiptTxn">TXN-123456</span></p>
+                    <p><strong>Total:</strong> <span id="receiptAmount">$0 CLP</span></p>
+                    <p><strong>Estado:</strong> <span class="badge badge-success">Aprobado</span></p>
+                </div>
+                <button class="done-btn" id="paymentDoneBtn">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 Innovatech Chile. Proyecto Académico - Introducción a Herramientas DevOps.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

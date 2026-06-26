@@ -1,0 +1,14 @@
+# Documentos Locales
+*.pdf
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
