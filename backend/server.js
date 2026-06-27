@@ -19,14 +19,14 @@ const products = [
     name: "Cama Plegable Premium Antiestrés",
     price: 34990,
     description: "Cama ortopédica con espuma viscoelástica, ideal para el descanso de perritos de todos los tamaños. Cubierta lavable y base impermeable antideslizante.",
-    image: "https://images.unsplash.com/photo-1541599540903-216a46ca1ad0?auto=format&fit=crop&q=80&w=600"
+    image: "https://i.imgur.com/kZr1Pgw.jpeg"
   },
   {
     id: 2,
     name: "Lanzador de Pelotas Automático",
     price: 59990,
     description: "Juguete interactivo que lanza pelotas a 3, 6 o 9 metros. Estimula mental y físicamente a tu perrito, ideal para cuando se queda solo en casa.",
-    image: "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=600"
+    image: "https://i.imgur.com/uj52cBe.jpeg"
   }
 ];
 
